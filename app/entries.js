@@ -2,7 +2,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import { useContext, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { EntriesContext } from "./_layout";
-const ip = "192.168.1.85";
+const ip = "192.168.1.74";
 
 export default function Entries() {
   const { refreshKey } = useContext(EntriesContext);

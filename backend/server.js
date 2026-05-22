@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import express from "express";
 import multer from "multer";
 import db from "./db.js";
+
 dotenv.config();
 
 const app = express();
@@ -25,15 +26,11 @@ app.get("/", (req, res) => {
 });
 
 app.get("/entries", async (req, res) => {
-  console.log("Ts working");
   try {
-    const result = await db.query("SELECT * FROM entries");
-
-    console.log("ROWS: ", result.rows);
-
+    const result = await db.query("SELECT * FROM entries ORDER BY id DESC");
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("GET /entries error:", err);
     res.status(500).json({ error: "server error" });
   }
 });
@@ -41,43 +38,49 @@ app.get("/entries", async (req, res) => {
 const upload = multer({ dest: "uploads/" });
 
 app.post("/upload", upload.single("audio"), async (req, res) => {
-  const uploadedFile = await ai.files.upload({
-    file: req.file.path,
-    config: {
-      mimeType: req.file.mimetype,
-    },
-  });
+  try {
+    const uploadedFile = await ai.files.upload({
+      file: req.file.path,
+      config: {
+        mimeType: req.file.mimetype,
+      },
+    });
 
-  const result = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: createUserContent([
-      createPartFromUri(uploadedFile.uri, uploadedFile.mimeType),
-      "Transcribe this audio. Return only the spoken words.",
-    ]),
-  });
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: createUserContent([
+        createPartFromUri(uploadedFile.uri, uploadedFile.mimeType),
+        "Transcribe this audio. Return only the spoken words.",
+      ]),
+    });
 
-  res.json({ transcript: result.text });
-  console.log("The message says: ", result.text);
+    console.log("The message says:", result.text);
+    res.json({ transcript: result.text });
+  } catch (err) {
+    console.error("Upload/transcription error:", err);
+    res.status(500).json({ error: "transcription failed" });
+  }
 });
 
 app.post("/entries", async (req, res) => {
-  console.log("Testing with balls");
   try {
     const { text } = req.body;
+
+    const today = new Date().toISOString().split("T")[0];
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `
 You are an AI assistant for a smart journal and productivity app.
 
-Today's date is ${new Date().toISOString().split("T")[0]}.
+Today's date is ${today}.
 
-Your job is to convert the user's natural language input into STRICT valid JSON.
+Convert the user's natural language input into STRICT valid JSON.
 
 Return ONLY raw JSON.
-DO NOT use markdown.
-DO NOT wrap the response in \`\`\`.
-DO NOT explain anything.
+Do not use markdown.
+Do not use code fences.
+Do not explain anything.
 
 The JSON MUST exactly follow this structure:
 
@@ -94,89 +97,62 @@ The JSON MUST exactly follow this structure:
   "endDate": "YYYY-MM-DD or null",
   "dueDate": "YYYY-MM-DD or null",
   "recurrence": "none | daily | weekly | monthly | yearly | custom",
-  "durationMinutes": number or null,
+  "durationMinutes": 0,
   "notificationEnabled": true,
-  "notificationTime": "HH:MM or null",
-  "reminderOffsetMinutes": number or null,
+  "notificationTime": "real datetime string or null",
+  "reminderOffsetMinutes": 0,
   "priority": "low | medium | high",
   "sentiment": "positive | neutral | negative",
-  "confidence": number,
-  "keywords": ["keyword1", "keyword2", ...]
+  "confidence": 1,
+  "keywords": ["keyword1", "keyword2"]
 }
 
-Interpretation rules:
+Rules:
 
 - type:
-  - "statement" = general thought/journal entry
+  - "statement" = general thought or journal entry
   - "task" = something to complete
   - "reminder" = something the user wants to remember
   - "event" = scheduled occurrence
 
 - actionable:
-  - true for reminders/tasks/events
+  - true for reminders, tasks, and events
   - false for statements
 
-- title:
-  - short concise summary
-
-- description:
-  - clear explanation of the entry
-
 - category:
-  - choose the MOST relevant category
+  - choose the most relevant category
 
-- Dates:
-  - use YYYY-MM-DD format
-  - infer relative dates like "tomorrow", "next friday", etc.
+- date:
+  - use YYYY-MM-DD
+  - infer relative dates like "today", "tomorrow", and "next friday"
+  - use null if no date is known
 
-- Times:
+- time:
   - use 24-hour HH:MM format
+  - use null if no time is known
 
 - recurrence:
-  - "daily" for phrases like "every day"
-  - "weekly" for weekly repeats
-  - "monthly" for monthly repeats
-  - "yearly" for yearly repeats
-  - otherwise "none"
+  - daily, weekly, monthly, yearly, custom, or none
 
 - durationMinutes:
-  - infer if user gives a duration like:
-    "study for 1 hour"
+  - use a number if duration is given
+  - otherwise use null
 
 - notificationEnabled:
-  - true if the user implies wanting a reminder or schedule
-  - false for plain journal thoughts
+  - true if the user asks to remember, be reminded, schedule something, or complete a task
+  - false for plain statements or journal thoughts
 
 - notificationTime:
-  - If a time is given, assume notification should happen BEFORE the event.
-  - Default reminderOffsetMinutes = 30 if time exists.
-  - notificationTime = time minus reminderOffsetMinutes.
+  - must be either null or a real full datetime string like "2026-05-21T16:30:00"
+  - never return only "HH:MM"
+  - never return the placeholder "YYYY-MM-DDTHH:MM:SS"
+  - if an event/task/reminder has a date and time, subtract reminderOffsetMinutes from that datetime
+  - if a time exists but no reminder offset is stated, use 30 minutes
+  - if no date or time can reasonably be inferred, use null
 
-Examples:
-- Event at 17:00
-- reminderOffsetMinutes = 30
-- notificationTime = 16:30
-
-- If the user says:
-  "study for my test"
-
-  Then:
-  - type = "task"
-  - recurrence = "daily"
-  - notificationEnabled = true
-  - generate a reasonable reminder schedule
-
-- If the user says:
-  "study for my test that's this friday an hour a day at 5"
-
-  Then:
-  - type = "task"
-  - recurrence = "daily"
-  - startDate = today
-  - endDate = friday
-  - durationMinutes = 60
-  - time = 17:00
-  - notificationTime = 16:30
+- reminderOffsetMinutes:
+  - default to 30 when there is a specific time
+  - otherwise use null
 
 - priority:
   - infer urgency intelligently
@@ -185,10 +161,10 @@ Examples:
   - detect emotional tone
 
 - confidence:
-  - value between 0 and 1
+  - number between 0 and 1
 
 - keywords:
-  - include searchable keywords related to the entry, use as many as needed doesn't have to just be two but make them something a person would most likely use to search
+  - include searchable keywords the user would realistically search later
 
 ALL fields must exist.
 If unknown, use null.
@@ -198,35 +174,44 @@ User input:
 `,
     });
 
-    const aiText = response.text;
+    let aiText = response.text.trim();
+
+    aiText = aiText
+      .replace(/^```json/i, "")
+      .replace(/^```/i, "")
+      .replace(/```$/i, "")
+      .trim();
+
+    console.log("AI TEXT:", aiText);
+
     const parsedText = JSON.parse(aiText);
 
     const result = await db.query(
       `
       INSERT INTO entries (
-          raw_text,
-          type,
-          actionable,
-          title,
-          description,
-          category,
-          date,
-          start_date,
-          end_date,
-          due_date,
-          recurrence,
-          duration_minutes,
-          notification_enabled,
-          notification_time,
-          reminder_offset_minutes,
-          priority,
-          sentiment,
-          confidence,
-          keywords
+        raw_text,
+        type,
+        actionable,
+        title,
+        description,
+        category,
+        date,
+        start_date,
+        end_date,
+        due_date,
+        recurrence,
+        duration_minutes,
+        notification_enabled,
+        notification_time,
+        reminder_offset_minutes,
+        priority,
+        sentiment,
+        confidence,
+        keywords
       )
       VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-          $11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,$18,$19
       )
       RETURNING *
       `,
@@ -253,11 +238,9 @@ User input:
       ],
     );
 
-    console.log("We good");
-
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("POST /entries error:", err);
     res.status(500).json({ error: "AI failed" });
   }
 });
@@ -266,11 +249,10 @@ app.delete("/entries/:id", async (req, res) => {
   const id = req.params.id;
 
   try {
-    await db.query(`DELETE FROM entries WHERE id = $1`, [id]);
-
+    await db.query("DELETE FROM entries WHERE id = $1", [id]);
     res.json({ message: "Entry deleted successfully" });
   } catch (err) {
-    console.error(err);
+    console.error("DELETE /entries error:", err);
     res.status(500).json({ error: "server error" });
   }
 });

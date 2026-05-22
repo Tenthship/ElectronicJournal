@@ -6,8 +6,10 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
-import { useContext, useState } from "react";
+import * as Notifications from "expo-notifications";
+import { useContext, useEffect, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,10 +20,70 @@ import {
 import SearchBar from "../components/SearchBar";
 import SearchButton from "../components/SearchButton";
 import VoiceCircle from "../components/VoiceCircle";
-import { scheduleEntryNotification } from "../utils/notifications";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.85";
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+async function requestNotificationPermissions() {
+  console.log("REQUESTING NOTIFS");
+
+  const { status } = await Notifications.getPermissionsAsync();
+  let finalStatus = status;
+
+  if (status !== "granted") {
+    const request = await Notifications.requestPermissionsAsync();
+    finalStatus = request.status;
+  }
+
+  console.log("Notification permission:", finalStatus);
+
+  if (finalStatus !== "granted") {
+    Alert.alert(
+      "Notifications not enabled",
+      "Go to Settings → Expo Go → Notifications and turn on Allow Notifications.",
+    );
+    return false;
+  }
+
+  return true;
+}
+
+async function scheduleEntryNotification(
+  isNotification,
+  title,
+  body,
+  secondsFromNow,
+  notificationTime,
+) {
+  if (!isNotification) return;
+
+  const hasPermission = await requestNotificationPermissions();
+  if (!hasPermission) return;
+
+  console.log("Notification Time: ", notificationTime);
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: title || "Reminder",
+      body: body || "You have a reminder",
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: secondsFromNow,
+    },
+  });
+
+  console.log("Notification scheduled");
+}
+
+const ip = "192.168.1.74";
 
 function RecorderSection({ setAudioUri, player, setRefreshKey }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -39,7 +101,13 @@ function RecorderSection({ setAudioUri, player, setRefreshKey }) {
 
     const savedEntry = await response.json();
 
-    await scheduleEntryNotification(savedEntry);
+    scheduleEntryNotification(
+      savedEntry.notification_enabled,
+      savedEntry.description,
+      savedEntry.raw_text,
+      5,
+      savedEntry.notification_time,
+    );
 
     setRefreshKey((prev) => prev + 1);
   };
@@ -111,19 +179,26 @@ function TypingSection({ setRefreshKey }) {
   const [input, setInput] = useState("");
 
   const submitSearch = async () => {
+    const savedInput = input;
+    setInput("");
+
+    console.log(savedInput);
+
     const response = await fetch(`http://${ip}:3000/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: input }),
+      body: JSON.stringify({ text: savedInput }),
     });
 
     const savedEntry = await response.json();
 
-    await scheduleEntryNotification(savedEntry);
-
-    console.log(input);
-
-    setInput("");
+    scheduleEntryNotification(
+      savedEntry.notification_enabled,
+      savedEntry.description,
+      savedEntry.raw_text,
+      5,
+      savedEntry.notification_time,
+    );
 
     setRefreshKey((prev) => prev + 1);
   };
@@ -154,10 +229,13 @@ function TypingSection({ setRefreshKey }) {
 export default function Index() {
   const { setRefreshKey } = useContext(EntriesContext);
   const [audioUri, setAudioUri] = useState(null);
-  const [recorderKey, setRecorderKey] = useState(0);
   const [isRecorderPage, setIsRecorderPage] = useState(false);
 
   const player = useAudioPlayer(audioUri);
+
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -175,7 +253,6 @@ export default function Index() {
       {isRecorderPage ? (
         <RecorderSection
           player={player}
-          key={recorderKey}
           setRefreshKey={setRefreshKey}
           setAudioUri={(uri) => {
             setAudioUri(uri);
