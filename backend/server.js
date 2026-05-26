@@ -220,7 +220,7 @@ User input:
         parsedText.type,
         parsedText.actionable,
         parsedText.title,
-        parsedText.description,
+        parsedText.description || parsedText.rawText || parsedText.title || "",
         parsedText.category,
         parsedText.date,
         parsedText.startDate,
