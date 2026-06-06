@@ -2,10 +2,11 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import { Bell, Calendar, CheckCircle2, StickyNote } from "lucide-react-native";
 import { useContext, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.85";
+const ip = "192.168.1.203";
 
 const TYPE_META = {
   task: {
@@ -81,11 +82,6 @@ export default function Entries() {
     loadEntries();
   }, [refreshKey]);
 
-  useEffect(() => {
-    if (showEntry) {
-    }
-  }, [showEntry]);
-
   function PageButton({ name, type }) {
     const active = currentPage === name;
 
@@ -106,6 +102,11 @@ export default function Entries() {
 
   return (
     <View style={styles.container}>
+      <EntryField
+        entry={showEntry}
+        onClose={() => setShowEntry(null)}
+        onUpdated={loadEntries}
+      />
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Pocket Journal</Text>
         <Text style={styles.h1}>Entries</Text>

@@ -257,6 +257,28 @@ app.delete("/entries/:id", async (req, res) => {
   }
 });
 
+app.put("/entries/:id", async (req, res) => {
+  const id = req.params.id;
+  const text = req.body.new_text;
+
+  try {
+    const result = await db.query(
+      `
+      UPDATE entries
+      SET raw_text = $1
+      WHERE id = $2
+      RETURNING *
+      `,
+      [text, id],
+    );
+    console.log(result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("PUT /entries error:", err);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`App listening at http://localhost:${PORT}`);
 });
