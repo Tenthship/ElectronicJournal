@@ -12,7 +12,7 @@ import db from "./db.js";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -259,19 +259,25 @@ app.delete("/entries/:id", async (req, res) => {
 
 app.put("/entries/:id", async (req, res) => {
   const id = req.params.id;
-  const text = req.body.new_text;
+  const text = req.body.new_text?.trim();
+
+  if (!text) {
+    return res.status(400).json({ error: "new_text is required" });
+  }
 
   try {
     const result = await db.query(
       `
       UPDATE entries
-      SET raw_text = $1
+      SET 
+        raw_text = $1,
+        description = $1
       WHERE id = $2
       RETURNING *
       `,
       [text, id],
     );
-    console.log(result.rows[0]);
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error("PUT /entries error:", err);

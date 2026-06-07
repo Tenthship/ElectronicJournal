@@ -6,7 +6,7 @@ import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.203";
+const ip = "192.168.1.125";
 
 const TYPE_META = {
   task: {
@@ -58,6 +58,7 @@ export default function Entries() {
   const [currentType, setCurrentType] = useState("All");
   const [searchValue, setSearchValue] = useState("");
   const [showEntry, setShowEntry] = useState(null);
+  const [isAiSearch, setIsAiSearch] = useState(false);
 
   const loadEntries = async () => {
     const response = await fetch(`http://${ip}:3000/entries`);
@@ -100,6 +101,10 @@ export default function Entries() {
     );
   }
 
+  async function aiSearch(searchPrompt) {
+    console.log("BWWWWWW.... Initiating AI Search Sequence");
+  }
+
   return (
     <View style={styles.container}>
       <EntryField
@@ -112,7 +117,14 @@ export default function Entries() {
         <Text style={styles.h1}>Entries</Text>
       </View>
 
-      <SearchBar value={searchValue} onChange={setSearchValue} />
+      <SearchBar
+        value={searchValue}
+        onChange={setSearchValue}
+        hasAI={true}
+        aiSearchFunction={() => {
+          setIsAiSearch(!isAiSearch);
+        }}
+      />
 
       <View style={styles.filterWrapper}>
         <ScrollView
@@ -153,12 +165,12 @@ export default function Entries() {
 
           return (
             <Pressable
+              key={entry.id}
               onPress={() => {
                 setShowEntry(entry);
               }}
             >
               <View
-                key={entry.id}
                 style={[
                   styles.entryCard,
                   {

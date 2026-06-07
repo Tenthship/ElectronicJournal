@@ -1,18 +1,21 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, TextInput } from "react-native";
-const ip = "192.168.1.203";
+
+const ip = "192.168.1.125";
 
 export default function EntryField({ entry, onClose, onUpdated }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
+
   const [editedText, setEditedText] = useState("");
   const [isEditable, setIsEditable] = useState(false);
-  console.log("Edited Text: ", editedText);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (entry) {
       setEditedText(entry.raw_text || entry.description || "");
+      setIsEditable(false);
     }
   }, [entry]);
 
@@ -35,38 +38,68 @@ export default function EntryField({ entry, onClose, onUpdated }) {
         }),
       ]).start();
     }
-  }, [entry]);
+  }, [entry, fadeAnim, scaleAnim]);
 
   if (!entry) return null;
 
   async function editEntry() {
-    const response = await fetch(`http://${ip}:3000/entries/${entry.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        new_text: editedText,
-      }),
-    });
+    try {
+      const response = await fetch(`http://${ip}:3000/entries/${entry.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          new_text: editedText.trim(),
+        }),
+      });
 
-    if (!response.ok) {
-      console.log("Update failed:", await response.text());
+      if (!response.ok) {
+        console.log("Update failed:", await response.text());
+        return false;
+      }
+
+      const data = await response.json();
+      console.log("Updated:", data);
+      return true;
+    } catch (err) {
+      console.log("Update error:", err);
+      return false;
+    }
+  }
+
+  async function handleEditPress() {
+    if (!isEditable) {
+      setIsEditable(true);
       return;
     }
 
-    const data = await response.json();
-    console.log("Updated:", data);
+    const cleanedText = editedText.trim();
+
+    if (!cleanedText) return;
+
+    setIsSaving(true);
+
+    const success = await editEntry();
+
+    setIsSaving(false);
+
+    if (!success) return;
+
+    setIsEditable(false);
+
+    await onUpdated?.();
+    onClose();
   }
+
+  function handleClose() {
+    onClose();
+    setIsEditable(false);
+  }
+
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-      <Pressable
-        style={styles.backdrop}
-        onPress={() => {
-          onClose();
-          setIsEditable(false);
-        }}
-      />
+      <Pressable style={styles.backdrop} onPress={handleClose} />
 
       <Animated.View
         style={[
@@ -76,13 +109,7 @@ export default function EntryField({ entry, onClose, onUpdated }) {
           },
         ]}
       >
-        <Pressable
-          style={styles.closeButton}
-          onPress={() => {
-            onClose();
-            setIsEditable(false);
-          }}
-        >
+        <Pressable style={styles.closeButton} onPress={handleClose}>
           <Text style={styles.closeText}>✕</Text>
         </Pressable>
 
@@ -94,28 +121,26 @@ export default function EntryField({ entry, onClose, onUpdated }) {
           onChangeText={setEditedText}
           multiline
           editable={isEditable}
+          placeholder="Write something..."
         />
 
         <Pressable
-          style={[styles.editButton, isEditable && styles.editButtonActive]}
-          onPress={async () => {
-            if (isEditable) {
-              await editEntry();
-              await onUpdated?.();
-              setIsEditable(false);
-              onClose();
-            } else {
-              setIsEditable(true);
-            }
-          }}
+          style={[
+            styles.editButton,
+            isEditable && styles.editButtonActive,
+            isSaving && styles.editButtonDisabled,
+          ]}
+          onPress={handleEditPress}
+          disabled={isSaving}
         >
           <AntDesign
             name={isEditable ? "check" : "edit"}
             size={22}
             color={isEditable ? "#ffffff" : "#64748b"}
           />
+
           <Text style={[styles.editText, isEditable && styles.editTextActive]}>
-            {isEditable ? "Done" : "Edit"}
+            {isSaving ? "Saving..." : isEditable ? "Done" : "Edit"}
           </Text>
         </Pressable>
 
@@ -184,16 +209,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  time: {
-    fontSize: 13,
-    color: "#94a3b8",
-  },
   descriptionEditing: {
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#94a3b8",
     borderRadius: 12,
     padding: 12,
+    minHeight: 120,
+    textAlignVertical: "top",
   },
 
   editButton: {
@@ -212,6 +235,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#0f172a",
   },
 
+  editButtonDisabled: {
+    opacity: 0.6,
+  },
+
   editText: {
     fontSize: 14,
     fontWeight: "700",
@@ -220,5 +247,10 @@ const styles = StyleSheet.create({
 
   editTextActive: {
     color: "#ffffff",
+  },
+
+  time: {
+    fontSize: 13,
+    color: "#94a3b8",
   },
 });

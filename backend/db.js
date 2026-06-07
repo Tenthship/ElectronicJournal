@@ -8,11 +8,11 @@ console.log("User: ", process.env.DB_USER);
 console.log("ENV FILE TEST:", process.env.DB_HOST);
 
 const db = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: String(process.env.DB_PASSWORD),
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
 });
 
 db.connect()

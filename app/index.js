@@ -21,7 +21,7 @@ import VoiceCircle from "../components/VoiceCircle";
 import { scheduleTestNotification } from "../utils/notifications";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.203";
+const ip = "192.168.1.125";
 
 function RecorderSection({ setAudioUri, player, setRefreshKey }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
