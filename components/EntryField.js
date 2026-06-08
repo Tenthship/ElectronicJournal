@@ -2,7 +2,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, TextInput } from "react-native";
 
-const ip = "192.168.1.125";
+const ip = "192.168.1.203";
 
 export default function EntryField({ entry, onClose, onUpdated }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;

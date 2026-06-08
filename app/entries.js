@@ -6,7 +6,7 @@ import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.125";
+const ip = "192.168.1.203";
 
 const TYPE_META = {
   task: {

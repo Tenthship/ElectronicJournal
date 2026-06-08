@@ -1,5 +1,4 @@
 import * as Notifications from "expo-notifications";
-import { Alert } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -10,53 +9,78 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function requestNotificationPermissions() {
-  console.log("REQUESTING NOTIFS");
-
-  const { status } = await Notifications.getPermissionsAsync();
-
-  let finalStatus = status;
+export async function requestNotificationPermission() {
+  const { status } = await Notifications.requestPermissionsAsync();
 
   if (status !== "granted") {
-    const request = await Notifications.requestPermissionsAsync();
-    finalStatus = request.status;
-  }
-
-  console.log("Notification permission:", finalStatus);
-
-  if (finalStatus !== "granted") {
-    Alert.alert(
-      "Notifications not enabled",
-      "Please enable notifications in settings.",
-    );
-
+    console.log("Notification permission not granted");
     return false;
   }
 
   return true;
 }
 
-export async function scheduleTestNotification(title, body) {
-  try {
-    const hasPermission = await requestNotificationPermissions();
+export function buildNotificationDate(entry) {
+  const rawText = entry.rawText ?? entry.raw_text ?? "";
 
-    if (!hasPermission) return;
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: title || "Reminder",
-        body: body || "You have a reminder",
-        sound: "default",
-      },
-      trigger: {
-        type: "timeInterval",
-        seconds: 10,
-        repeats: false,
-      },
-    });
-
-    console.log("Test notification scheduled");
-  } catch (err) {
-    console.log("NOTIFICATION ERROR:", err);
+  const secondMatch = rawText.match(/in\s+(\d+)\s+seconds?/i);
+  if (secondMatch) {
+    return new Date(Date.now() + Number(secondMatch[1]) * 1000);
   }
+
+  const minuteMatch = rawText.match(/in\s+(\d+)\s+minutes?/i);
+  if (minuteMatch) {
+    return new Date(Date.now() + Number(minuteMatch[1]) * 60 * 1000);
+  }
+
+  const notificationTime = entry.notificationTime ?? entry.notification_time;
+
+  if (notificationTime) {
+    return new Date(notificationTime);
+  }
+
+  return null;
+}
+
+export async function scheduleNotification(title, body, triggerDate) {
+  const seconds = Math.max(
+    1,
+    Math.floor((triggerDate.getTime() - Date.now()) / 1000),
+  );
+
+  return await Notifications.scheduleNotificationAsync({
+    content: {
+      title: title || "Reminder",
+      body: body || "",
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds,
+    },
+  });
+}
+
+export async function handleReminder(entry) {
+  const notificationEnabled =
+    entry.notificationEnabled ?? entry.notification_enabled;
+
+  if (!notificationEnabled) return null;
+
+  const notifDate = buildNotificationDate(entry);
+
+  if (!notifDate || isNaN(notifDate.getTime())) {
+    console.log("No valid notification date");
+    return null;
+  }
+
+  if (notifDate <= new Date()) {
+    console.log("Notification time is in the past");
+    return null;
+  }
+
+  return await scheduleNotification(
+    entry.title,
+    entry.description ?? entry.raw_text ?? entry.rawText,
+    notifDate,
+  );
 }
