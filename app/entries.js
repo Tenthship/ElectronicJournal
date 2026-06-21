@@ -141,6 +141,7 @@ export default function Entries() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
+        <Text>-Today--</Text>
         {dbEntries.map((entry) => {
           const matchesType =
             currentType === "All" || entry.type === currentType;
