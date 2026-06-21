@@ -286,5 +286,5 @@ app.put("/entries/:id", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`App listening at http://localhost:${PORT}`);
+  console.log(`App listening on port ${PORT}`);
 });
