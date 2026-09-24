@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import SearchBar from "../components/SearchBar";
 import VoiceCircle from "../components/VoiceCircle";
+import { useAuth } from "../utils/AuthContext";
 import {
   handleReminder,
   requestNotificationPermission,
@@ -25,18 +26,19 @@ import { EntriesContext } from "./_layout";
 
 const localUrl = "https://pocketjournal.onrender.com";
 
-function RecorderSection({ setAudioUri, player, setRefreshKey }) {
+function RecorderSection({ setAudioUri, player, setRefreshKey, user }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
 
   const submitSearch = async (voiceMessage) => {
     console.log("Recording submitted");
     console.log("Voice Message: ", voiceMessage.transcript);
+    console.log("Sending user_id:", user?.id);
 
     const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: voiceMessage.transcript }),
+      body: JSON.stringify({ text: voiceMessage.transcript, user_id: user.id }),
     });
 
     const savedEntry = await response.json();
@@ -122,10 +124,11 @@ function RecorderSection({ setAudioUri, player, setRefreshKey }) {
   );
 }
 
-function TypingSection({ setRefreshKey }) {
+function TypingSection({ setRefreshKey, user }) {
   const [input, setInput] = useState("");
 
   const submitSearch = async () => {
+    console.log("Sending user_id:", user?.id);
     if (!input.trim()) return;
 
     const savedInput = input;
@@ -134,7 +137,7 @@ function TypingSection({ setRefreshKey }) {
     const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: savedInput }),
+      body: JSON.stringify({ text: savedInput, user_id: user.id }),
     });
 
     const savedEntry = await response.json();
@@ -166,6 +169,7 @@ function TypingSection({ setRefreshKey }) {
 
 export default function Index() {
   const { setRefreshKey } = useContext(EntriesContext);
+  const { user } = useAuth();
   const [audioUri, setAudioUri] = useState(null);
   const [isRecorderPage, setIsRecorderPage] = useState(false);
 
@@ -228,9 +232,10 @@ export default function Index() {
           player={player}
           setRefreshKey={setRefreshKey}
           setAudioUri={setAudioUri}
+          user={user}
         />
       ) : (
-        <TypingSection setRefreshKey={setRefreshKey} />
+        <TypingSection setRefreshKey={setRefreshKey} user={user} />
       )}
     </KeyboardAvoidingView>
   );

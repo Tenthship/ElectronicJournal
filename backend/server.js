@@ -26,8 +26,13 @@ app.get("/", (req, res) => {
 });
 
 app.get("/entries", async (req, res) => {
+  const userId = req.query.user_id;
+
   try {
-    const result = await db.query("SELECT * FROM entries ORDER BY id DESC");
+    const result = await db.query(
+      "SELECT * FROM entries WHERE user_id = $1 ORDER BY id DESC",
+      [userId],
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("GET /entries error:", err);
@@ -64,7 +69,9 @@ app.post("/upload", upload.single("audio"), async (req, res) => {
 
 app.post("/entries", async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, user_id } = req.body;
+    console.log("nards");
+    console.log("Received user_id:", user_id);
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -207,11 +214,12 @@ User input:
         priority,
         sentiment,
         confidence,
-        keywords
+        keywords,
+        user_id
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20
       )
       RETURNING *
       `,
@@ -235,6 +243,7 @@ User input:
         parsedText.sentiment,
         parsedText.confidence,
         parsedText.keywords,
+        user_id,
       ],
     );
 

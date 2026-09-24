@@ -4,6 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
+import { useAuth } from "../utils/AuthContext";
 import { EntriesContext } from "./_layout";
 
 const localUrl = "https://pocketjournal.onrender.com";
@@ -53,6 +54,7 @@ function formatTime(dateString) {
 
 export default function Entries() {
   const { refreshKey } = useContext(EntriesContext);
+  const { user } = useAuth();
   const [dbEntries, setDbEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState("All");
   const [currentType, setCurrentType] = useState("All");
@@ -61,7 +63,9 @@ export default function Entries() {
   const [isAiSearch, setIsAiSearch] = useState(false);
 
   const loadEntries = async () => {
-    const response = await fetch(`${localUrl}/entries`);
+    if (!user) return;
+
+    const response = await fetch(`${localUrl}/entries?user_id=${user.id}`);
     const entries = await response.json();
     setDbEntries(entries);
   };
@@ -81,7 +85,7 @@ export default function Entries() {
 
   useEffect(() => {
     loadEntries();
-  }, [refreshKey]);
+  }, [refreshKey, user]);
 
   function PageButton({ name, type }) {
     const active = currentPage === name;
