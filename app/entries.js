@@ -6,7 +6,7 @@ import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.203";
+const localUrl = "https://pocketjournal.onrender.com";
 
 const TYPE_META = {
   task: {
@@ -61,7 +61,7 @@ export default function Entries() {
   const [isAiSearch, setIsAiSearch] = useState(false);
 
   const loadEntries = async () => {
-    const response = await fetch(`http://${ip}:3000/entries`);
+    const response = await fetch(`${localUrl}/entries`);
     const entries = await response.json();
     setDbEntries(entries);
   };
@@ -69,7 +69,7 @@ export default function Entries() {
   async function handleDelete(id) {
     setDbEntries((oldEntries) => oldEntries.filter((entry) => entry.id !== id));
 
-    const response = await fetch(`http://${ip}:3000/entries/${id}`, {
+    const response = await fetch(`${localUrl}/entries/${id}`, {
       method: "DELETE",
     });
 

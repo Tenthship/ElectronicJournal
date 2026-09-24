@@ -56,6 +56,16 @@ export default function Layout() {
             ),
           }}
         />
+
+        <Tabs.Screen
+          name="login"
+          options={{
+            title: "Login",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="log-in" size={size} color={color} />
+            ),
+          }}
+        />
       </Tabs>
     </EntriesContext.Provider>
   );

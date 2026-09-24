@@ -23,7 +23,7 @@ import {
 } from "../utils/notifications";
 import { EntriesContext } from "./_layout";
 
-const ip = "192.168.1.203";
+const localUrl = "https://pocketjournal.onrender.com";
 
 function RecorderSection({ setAudioUri, player, setRefreshKey }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -33,7 +33,7 @@ function RecorderSection({ setAudioUri, player, setRefreshKey }) {
     console.log("Recording submitted");
     console.log("Voice Message: ", voiceMessage.transcript);
 
-    const response = await fetch(`http://${ip}:3000/entries`, {
+    const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: voiceMessage.transcript }),
@@ -78,7 +78,7 @@ function RecorderSection({ setAudioUri, player, setRefreshKey }) {
       type: "audio/m4a",
     });
 
-    const response = await fetch(`http://${ip}:3000/upload`, {
+    const response = await fetch(`${localUrl}/upload`, {
       method: "POST",
       body: formData,
     });
@@ -131,7 +131,7 @@ function TypingSection({ setRefreshKey }) {
     const savedInput = input;
     setInput("");
 
-    const response = await fetch(`http://${ip}:3000/entries`, {
+    const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: savedInput }),
