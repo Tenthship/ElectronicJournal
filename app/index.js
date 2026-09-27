@@ -26,19 +26,21 @@ import { EntriesContext } from "./_layout";
 
 const localUrl = "https://pocketjournal.onrender.com";
 
-function RecorderSection({ setAudioUri, player, setRefreshKey, user }) {
+function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
 
   const submitSearch = async (voiceMessage) => {
     console.log("Recording submitted");
     console.log("Voice Message: ", voiceMessage.transcript);
-    console.log("Sending user_id:", user?.id);
 
     const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: voiceMessage.transcript, user_id: user.id }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ text: voiceMessage.transcript }),
     });
 
     const savedEntry = await response.json();
@@ -124,11 +126,10 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, user }) {
   );
 }
 
-function TypingSection({ setRefreshKey, user }) {
+function TypingSection({ setRefreshKey, session }) {
   const [input, setInput] = useState("");
 
   const submitSearch = async () => {
-    console.log("Sending user_id:", user?.id);
     if (!input.trim()) return;
 
     const savedInput = input;
@@ -136,8 +137,11 @@ function TypingSection({ setRefreshKey, user }) {
 
     const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: savedInput, user_id: user.id }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ text: savedInput }),
     });
 
     const savedEntry = await response.json();
@@ -169,7 +173,7 @@ function TypingSection({ setRefreshKey, user }) {
 
 export default function Index() {
   const { setRefreshKey } = useContext(EntriesContext);
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [audioUri, setAudioUri] = useState(null);
   const [isRecorderPage, setIsRecorderPage] = useState(false);
 
@@ -232,10 +236,10 @@ export default function Index() {
           player={player}
           setRefreshKey={setRefreshKey}
           setAudioUri={setAudioUri}
-          user={user}
+          session={session}
         />
       ) : (
-        <TypingSection setRefreshKey={setRefreshKey} user={user} />
+        <TypingSection setRefreshKey={setRefreshKey} session={session} />
       )}
     </KeyboardAvoidingView>
   );
@@ -249,27 +253,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
-
   view: {
     width: "100%",
     backgroundColor: "#fffdf8",
     borderRadius: 24,
     padding: 24,
-
     borderWidth: 1,
     borderColor: "#d6cfc2",
-
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
-
     elevation: 4,
   },
-
   button: {
     marginTop: 16,
     backgroundColor: "#5c6b73",
@@ -277,7 +273,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-
   buttonText: {
     color: "#f8f6f2",
     fontSize: 16,
@@ -288,19 +283,16 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 24,
   },
-
   title: {
     fontSize: 34,
     fontWeight: "800",
     color: "#2f2f2f",
   },
-
   subtitle: {
     marginTop: 6,
     fontSize: 16,
     color: "#7a7268",
   },
-
   toggleRow: {
     width: "100%",
     flexDirection: "row",
@@ -309,24 +301,20 @@ const styles = StyleSheet.create({
     padding: 4,
     marginBottom: 18,
   },
-
   toggleButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: "center",
   },
-
   toggleButtonActive: {
     backgroundColor: "#fffdf8",
   },
-
   toggleText: {
     color: "#7a7268",
     fontSize: 15,
     fontWeight: "600",
   },
-
   toggleTextActive: {
     color: "#2f2f2f",
   },
@@ -338,46 +326,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d6cfc2",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 4,
   },
-
   cardTitle: {
     fontSize: 24,
     fontWeight: "800",
     color: "#2f2f2f",
     marginBottom: 6,
   },
-
   cardSubtitle: {
     fontSize: 15,
     color: "#7a7268",
     lineHeight: 21,
     marginBottom: 22,
   },
-
   inputBox: {
     marginBottom: 18,
   },
-
   primaryButton: {
     backgroundColor: "#5c6b73",
     paddingVertical: 15,
     borderRadius: 16,
     alignItems: "center",
   },
-
   primaryButtonText: {
     color: "#fffdf8",
     fontSize: 16,
     fontWeight: "700",
   },
-
   secondaryButton: {
     marginTop: 22,
     backgroundColor: "#eee7dc",
@@ -385,23 +364,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
   },
-
   secondaryButtonText: {
     color: "#4d4944",
     fontSize: 15,
     fontWeight: "700",
   },
-
   disabledButton: {
     opacity: 0.45,
   },
-
   voiceArea: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 18,
   },
-
   recordingStatus: {
     marginTop: 16,
     fontSize: 16,

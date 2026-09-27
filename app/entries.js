@@ -54,7 +54,7 @@ function formatTime(dateString) {
 
 export default function Entries() {
   const { refreshKey } = useContext(EntriesContext);
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [dbEntries, setDbEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState("All");
   const [currentType, setCurrentType] = useState("All");
@@ -63,9 +63,11 @@ export default function Entries() {
   const [isAiSearch, setIsAiSearch] = useState(false);
 
   const loadEntries = async () => {
-    if (!user) return;
+    if (!session) return;
 
-    const response = await fetch(`${localUrl}/entries?user_id=${user.id}`);
+    const response = await fetch(`${localUrl}/entries`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
     const entries = await response.json();
     setDbEntries(entries);
   };
@@ -75,6 +77,7 @@ export default function Entries() {
 
     const response = await fetch(`${localUrl}/entries/${id}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
     });
 
     if (!response.ok) {
@@ -85,7 +88,7 @@ export default function Entries() {
 
   useEffect(() => {
     loadEntries();
-  }, [refreshKey, user]);
+  }, [refreshKey, session]);
 
   function PageButton({ name, type }) {
     const active = currentPage === name;
@@ -228,37 +231,16 @@ export default function Entries() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fafaf9",
-  },
-
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 55,
-    paddingBottom: 12,
-  },
-
+  container: { flex: 1, backgroundColor: "#fafaf9" },
+  header: { paddingHorizontal: 20, paddingTop: 55, paddingBottom: 12 },
   eyebrow: {
     fontSize: 12,
     color: "#64748b",
     letterSpacing: 1,
     textTransform: "uppercase",
   },
-
-  h1: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginTop: 2,
-  },
-
-  filters: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-
+  h1: { fontSize: 32, fontWeight: "700", color: "#0f172a", marginTop: 2 },
+  filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -268,27 +250,10 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     marginRight: 8,
   },
-
-  pillActive: {
-    backgroundColor: "#0f172a",
-    borderColor: "#0f172a",
-  },
-
-  pillText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
-  },
-
-  pillTextActive: {
-    color: "#fff",
-  },
-
-  list: {
-    padding: 16,
-    paddingTop: 8,
-  },
-
+  pillActive: { backgroundColor: "#0f172a", borderColor: "#0f172a" },
+  pillText: { fontSize: 13, fontWeight: "600", color: "#334155" },
+  pillTextActive: { color: "#fff" },
+  list: { padding: 16, paddingTop: 8 },
   entryCard: {
     flexDirection: "row",
     borderWidth: 1,
@@ -296,23 +261,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
-
-  rail: {
-    width: 4,
-  },
-
-  cardBody: {
-    flex: 1,
-    padding: 14,
-  },
-
+  rail: { width: 4 },
+  cardBody: { flex: 1, padding: 14 },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
-
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,28 +277,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 999,
   },
-
-  chipText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 4,
-  },
-
+  chipText: { fontSize: 11, fontWeight: "700" },
+  title: { fontSize: 16, fontWeight: "700", color: "#0f172a", marginBottom: 4 },
   description: {
     fontSize: 14,
     color: "#475569",
     lineHeight: 20,
     marginBottom: 8,
   },
-
-  time: {
-    fontSize: 12,
-    color: "#64748b",
-  },
+  time: { fontSize: 12, color: "#64748b" },
 });

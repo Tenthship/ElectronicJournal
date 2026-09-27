@@ -3,6 +3,7 @@ import {
   createUserContent,
   GoogleGenAI,
 } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -21,17 +22,38 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+);
+
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing token" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !data.user) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  req.userId = data.user.id;
+  next();
+}
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.get("/entries", async (req, res) => {
-  const userId = req.query.user_id;
-
+app.get("/entries", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
       "SELECT * FROM entries WHERE user_id = $1 ORDER BY id DESC",
-      [userId],
+      [req.userId],
     );
     res.json(result.rows);
   } catch (err) {
@@ -67,11 +89,10 @@ app.post("/upload", upload.single("audio"), async (req, res) => {
   }
 });
 
-app.post("/entries", async (req, res) => {
+app.post("/entries", requireAuth, async (req, res) => {
   try {
-    const { text, user_id } = req.body;
-    console.log("nards");
-    console.log("Received user_id:", user_id);
+    const { text } = req.body;
+    const user_id = req.userId;
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -254,11 +275,19 @@ User input:
   }
 });
 
-app.delete("/entries/:id", async (req, res) => {
+app.delete("/entries/:id", requireAuth, async (req, res) => {
   const id = req.params.id;
 
   try {
-    await db.query("DELETE FROM entries WHERE id = $1", [id]);
+    const result = await db.query(
+      "DELETE FROM entries WHERE id = $1 AND user_id = $2 RETURNING *",
+      [id, req.userId],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+
     res.json({ message: "Entry deleted successfully" });
   } catch (err) {
     console.error("DELETE /entries error:", err);
@@ -266,7 +295,7 @@ app.delete("/entries/:id", async (req, res) => {
   }
 });
 
-app.put("/entries/:id", async (req, res) => {
+app.put("/entries/:id", requireAuth, async (req, res) => {
   const id = req.params.id;
   const text = req.body.new_text?.trim();
 
@@ -281,11 +310,15 @@ app.put("/entries/:id", async (req, res) => {
       SET 
         raw_text = $1,
         description = $1
-      WHERE id = $2
+      WHERE id = $2 AND user_id = $3
       RETURNING *
       `,
-      [text, id],
+      [text, id, req.userId],
     );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
 
     res.json(result.rows[0]);
   } catch (err) {
