@@ -43,6 +43,11 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
       body: JSON.stringify({ text: voiceMessage.transcript }),
     });
 
+    if (!response.ok) {
+      console.log("Saving voice entry failed:", response.status);
+      return;
+    }
+
     const savedEntry = await response.json();
     await handleReminder(savedEntry);
 
@@ -84,8 +89,14 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
 
     const response = await fetch(`${localUrl}/upload`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
       body: formData,
     });
+
+    if (!response.ok) {
+      console.log("Transcription failed:", response.status);
+      return;
+    }
 
     const voiceMessage = await response.json();
     console.log("The user said: ", voiceMessage);
@@ -143,6 +154,12 @@ function TypingSection({ setRefreshKey, session }) {
       },
       body: JSON.stringify({ text: savedInput }),
     });
+
+    if (!response.ok) {
+      console.log("Saving entry failed:", response.status);
+      setInput(savedInput);
+      return;
+    }
 
     const savedEntry = await response.json();
     await handleReminder(savedEntry);

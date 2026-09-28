@@ -1,8 +1,9 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { useAuth } from "../utils/AuthContext";
 
-const ip = "192.168.1.203";
+const localUrl = "https://pocketjournal.onrender.com";
 
 export default function EntryField({ entry, onClose, onUpdated }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -11,6 +12,7 @@ export default function EntryField({ entry, onClose, onUpdated }) {
   const [editedText, setEditedText] = useState("");
   const [isEditable, setIsEditable] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { session } = useAuth();
 
   useEffect(() => {
     if (entry) {
@@ -44,10 +46,11 @@ export default function EntryField({ entry, onClose, onUpdated }) {
 
   async function editEntry() {
     try {
-      const response = await fetch(`http://${ip}:3000/entries/${entry.id}`, {
+      const response = await fetch(`${localUrl}/entries/${entry.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           new_text: editedText.trim(),

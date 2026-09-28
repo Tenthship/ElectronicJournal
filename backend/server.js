@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import fs from "fs";
 import multer from "multer";
 import db from "./db.js";
 
@@ -64,7 +65,7 @@ app.get("/entries", requireAuth, async (req, res) => {
 
 const upload = multer({ dest: "uploads/" });
 
-app.post("/upload", upload.single("audio"), async (req, res) => {
+app.post("/upload", requireAuth, upload.single("audio"), async (req, res) => {
   try {
     const uploadedFile = await ai.files.upload({
       file: req.file.path,
@@ -86,6 +87,8 @@ app.post("/upload", upload.single("audio"), async (req, res) => {
   } catch (err) {
     console.error("Upload/transcription error:", err);
     res.status(500).json({ error: "transcription failed" });
+  } finally {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
   }
 });
 

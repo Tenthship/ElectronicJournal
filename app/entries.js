@@ -68,8 +68,14 @@ export default function Entries() {
     const response = await fetch(`${localUrl}/entries`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
+
+    if (!response.ok) {
+      console.log("Failed to load entries:", response.status);
+      return;
+    }
+
     const entries = await response.json();
-    setDbEntries(entries);
+    setDbEntries(Array.isArray(entries) ? entries : []);
   };
 
   async function handleDelete(id) {
