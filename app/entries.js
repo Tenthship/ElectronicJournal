@@ -1,48 +1,14 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
-import { Bell, Calendar, CheckCircle2, StickyNote } from "lucide-react-native";
 import { useContext, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import EntryField from "../components/EntryField";
 import SearchBar from "../components/SearchBar";
 import { useAuth } from "../utils/AuthContext";
+import { cancelReminder } from "../utils/notifications";
+import { colors, typeMeta } from "../utils/theme";
 import { EntriesContext } from "./_layout";
 
 const localUrl = "https://pocketjournal.onrender.com";
-
-const TYPE_META = {
-  task: {
-    label: "Task",
-    Icon: CheckCircle2,
-    bg: "#ecfdf5",
-    border: "#a7f3d0",
-    fg: "#047857",
-    chipBg: "#d1fae5",
-  },
-  reminder: {
-    label: "Reminder",
-    Icon: Bell,
-    bg: "#fffbeb",
-    border: "#fde68a",
-    fg: "#b45309",
-    chipBg: "#fef3c7",
-  },
-  statement: {
-    label: "Note",
-    Icon: StickyNote,
-    bg: "#eef2ff",
-    border: "#c7d2fe",
-    fg: "#4338ca",
-    chipBg: "#e0e7ff",
-  },
-  event: {
-    label: "Event",
-    Icon: Calendar,
-    bg: "#fdf2f8",
-    border: "#fbcfe8",
-    fg: "#be185d",
-    chipBg: "#fce7f3",
-  },
-};
 
 function formatTime(dateString) {
   if (!dateString) return "";
@@ -56,11 +22,9 @@ export default function Entries() {
   const { refreshKey } = useContext(EntriesContext);
   const { session } = useAuth();
   const [dbEntries, setDbEntries] = useState([]);
-  const [currentPage, setCurrentPage] = useState("All");
   const [currentType, setCurrentType] = useState("All");
   const [searchValue, setSearchValue] = useState("");
   const [showEntry, setShowEntry] = useState(null);
-  const [isAiSearch, setIsAiSearch] = useState(false);
 
   const loadEntries = async () => {
     if (!session) return;
@@ -89,34 +53,44 @@ export default function Entries() {
     if (!response.ok) {
       console.log("Delete failed");
       loadEntries();
+      return;
     }
+
+    await cancelReminder(id);
   }
 
   useEffect(() => {
     loadEntries();
   }, [refreshKey, session]);
 
-  function PageButton({ name, type }) {
-    const active = currentPage === name;
-
+  function FilterPill({ label, type }) {
+    const active = currentType === type;
     return (
       <Pressable
         style={[styles.pill, active && styles.pillActive]}
-        onPress={() => {
-          setCurrentPage(name);
-          setCurrentType(type);
-        }}
+        onPress={() => setCurrentType(type)}
       >
         <Text style={[styles.pillText, active && styles.pillTextActive]}>
-          {name}
+          {label}
         </Text>
       </Pressable>
     );
   }
 
-  async function aiSearch(searchPrompt) {
-    console.log("BWWWWWW.... Initiating AI Search Sequence");
-  }
+  const search = searchValue.toLowerCase();
+
+  const visibleEntries = dbEntries.filter((entry) => {
+    const matchesType = currentType === "All" || entry.type === currentType;
+
+    const matchesSearch =
+      search === "" ||
+      entry.raw_text?.toLowerCase().includes(search) ||
+      entry.title?.toLowerCase().includes(search) ||
+      entry.description?.toLowerCase().includes(search) ||
+      entry.keywords?.some((keyword) => keyword.toLowerCase().includes(search));
+
+    return matchesType && matchesSearch;
+  });
 
   return (
     <View style={styles.container}>
@@ -125,89 +99,68 @@ export default function Entries() {
         onClose={() => setShowEntry(null)}
         onUpdated={loadEntries}
       />
+
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Pocket Journal</Text>
         <Text style={styles.h1}>Entries</Text>
       </View>
 
-      <SearchBar
-        value={searchValue}
-        onChange={setSearchValue}
-        hasAI={true}
-        aiSearchFunction={() => {
-          setIsAiSearch(!isAiSearch);
-        }}
-      />
-
-      <View style={styles.filterWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          <PageButton name="All" type="All" />
-          <PageButton name="Tasks" type="task" />
-          <PageButton name="Reminders" type="reminder" />
-          <PageButton name="Events" type="event" />
-          <PageButton name="Notes" type="statement" />
-        </ScrollView>
+      <View style={styles.searchWrap}>
+        <SearchBar value={searchValue} onChange={setSearchValue} />
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+        style={styles.filterWrapper}
+      >
+        <FilterPill label="All" type="All" />
+        <FilterPill label="Tasks" type="task" />
+        <FilterPill label="Reminders" type="reminder" />
+        <FilterPill label="Events" type="event" />
+        <FilterPill label="Notes" type="statement" />
+      </ScrollView>
+
       <ScrollView contentContainerStyle={styles.list}>
-        <Text>-Today--</Text>
-        {dbEntries.map((entry) => {
-          const matchesType =
-            currentType === "All" || entry.type === currentType;
+        {visibleEntries.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Nothing here yet</Text>
+            <Text style={styles.emptyBody}>
+              {dbEntries.length === 0
+                ? "Add your first entry from the Home tab."
+                : "Try a different filter or search term."}
+            </Text>
+          </View>
+        )}
 
-          const search = searchValue.toLowerCase();
-
-          const matchesSearch =
-            search === "" ||
-            entry.raw_text?.toLowerCase().includes(search) ||
-            entry.title?.toLowerCase().includes(search) ||
-            entry.description?.toLowerCase().includes(search) ||
-            entry.keywords?.some((keyword) =>
-              keyword.toLowerCase().includes(search),
-            );
-
-          if (!matchesType || !matchesSearch) {
-            return null;
-          }
-
-          const meta = TYPE_META[entry.type] || TYPE_META.statement;
-          const Icon = meta.Icon;
+        {visibleEntries.map((entry) => {
+          const meta = typeMeta[entry.type] || typeMeta.statement;
 
           return (
-            <Pressable
-              key={entry.id}
-              onPress={() => {
-                setShowEntry(entry);
-              }}
-            >
+            <Pressable key={entry.id} onPress={() => setShowEntry(entry)}>
               <View
-                style={[
-                  styles.entryCard,
-                  {
-                    backgroundColor: meta.bg,
-                    borderColor: meta.border,
-                  },
-                ]}
+                style={[styles.entryCard, { backgroundColor: colors.card }]}
               >
                 <View style={[styles.rail, { backgroundColor: meta.fg }]} />
 
                 <View style={styles.cardBody}>
                   <View style={styles.cardHeader}>
-                    <View
-                      style={[styles.chip, { backgroundColor: meta.chipBg }]}
-                    >
-                      <Icon size={12} color={meta.fg} />
+                    <View style={[styles.chip, { backgroundColor: meta.bg }]}>
                       <Text style={[styles.chipText, { color: meta.fg }]}>
                         {meta.label}
                       </Text>
                     </View>
 
-                    <Pressable onPress={() => handleDelete(entry.id)}>
-                      <AntDesign name="delete" size={16} color="#64748b" />
+                    <Pressable
+                      onPress={() => handleDelete(entry.id)}
+                      hitSlop={8}
+                    >
+                      <AntDesign
+                        name="delete"
+                        size={16}
+                        color={colors.inkSoft}
+                      />
                     </Pressable>
                   </View>
 
@@ -220,9 +173,7 @@ export default function Entries() {
                   </Text>
 
                   <Text style={styles.time}>
-                    {formatTime(
-                      entry.created_at || entry.createdat || entry.date,
-                    )}
+                    {formatTime(entry.created_at || entry.date)}
                   </Text>
                 </View>
               </View>
@@ -237,59 +188,147 @@ export default function Entries() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fafaf9" },
-  header: { paddingHorizontal: 20, paddingTop: 55, paddingBottom: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 14,
+  },
+
   eyebrow: {
     fontSize: 12,
-    color: "#64748b",
+    color: colors.inkSoft,
     letterSpacing: 1,
     textTransform: "uppercase",
+    fontWeight: "600",
   },
-  h1: { fontSize: 32, fontWeight: "700", color: "#0f172a", marginTop: 2 },
-  filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+
+  h1: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: colors.ink,
+    marginTop: 2,
+  },
+
+  searchWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+
+  filterWrapper: {
+    flexGrow: 0,
+  },
+
+  filters: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    gap: 8,
+  },
+
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
     marginRight: 8,
   },
-  pillActive: { backgroundColor: "#0f172a", borderColor: "#0f172a" },
-  pillText: { fontSize: 13, fontWeight: "600", color: "#334155" },
-  pillTextActive: { color: "#fff" },
-  list: { padding: 16, paddingTop: 8 },
+
+  pillActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+
+  pillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.inkSoft,
+  },
+
+  pillTextActive: {
+    color: colors.cream,
+  },
+
+  list: {
+    padding: 20,
+    paddingTop: 8,
+  },
+
+  emptyState: {
+    paddingVertical: 60,
+    alignItems: "center",
+  },
+
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.ink,
+    marginBottom: 6,
+  },
+
+  emptyBody: {
+    fontSize: 14,
+    color: colors.inkSoft,
+    textAlign: "center",
+  },
+
   entryCard: {
     flexDirection: "row",
     borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 16,
     marginBottom: 12,
     overflow: "hidden",
   },
-  rail: { width: 4 },
-  cardBody: { flex: 1, padding: 14 },
+
+  rail: {
+    width: 4,
+  },
+
+  cardBody: {
+    flex: 1,
+    padding: 14,
+  },
+
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
+
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
   },
-  chipText: { fontSize: 11, fontWeight: "700" },
-  title: { fontSize: 16, fontWeight: "700", color: "#0f172a", marginBottom: 4 },
+
+  chipText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.ink,
+    marginBottom: 4,
+  },
+
   description: {
     fontSize: 14,
-    color: "#475569",
+    color: colors.inkSoft,
     lineHeight: 20,
     marginBottom: 8,
   },
-  time: { fontSize: 12, color: "#64748b" },
+
+  time: {
+    fontSize: 12,
+    color: colors.inkSoft,
+  },
 });

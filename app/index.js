@@ -22,18 +22,61 @@ import {
   handleReminder,
   requestNotificationPermission,
 } from "../utils/notifications";
+import { colors } from "../utils/theme";
 import { EntriesContext } from "./_layout";
 
 const localUrl = "https://pocketjournal.onrender.com";
+
+function uploadAudio(uri, token) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("audio", {
+      uri,
+      name: "recording.m4a",
+      type: "audio/m4a",
+    });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${localUrl}/upload`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch (err) {
+          reject(err);
+        }
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.send(formData);
+  });
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function todayLabel() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
 
   const submitSearch = async (voiceMessage) => {
-    console.log("Recording submitted");
-    console.log("Voice Message: ", voiceMessage.transcript);
-
     const response = await fetch(`${localUrl}/entries`, {
       method: "POST",
       headers: {
@@ -56,7 +99,6 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
 
   const startRecording = async () => {
     const permission = await AudioModule.requestRecordingPermissionsAsync();
-
     if (!permission.granted) {
       console.log("Mic permission denied");
       return;
@@ -69,8 +111,6 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
 
     await audioRecorder.prepareToRecordAsync();
     audioRecorder.record();
-
-    console.log("Recording started");
   };
 
   const stopRecording = async () => {
@@ -79,38 +119,22 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
     const uri = audioRecorder.uri;
     setAudioUri(uri);
 
-    const formData = new FormData();
-
-    formData.append("audio", {
-      uri,
-      name: "recording.m4a",
-      type: "audio/m4a",
-    });
-
-    const response = await fetch(`${localUrl}/upload`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}` },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      console.log("Transcription failed:", response.status);
+    let voiceMessage;
+    try {
+      voiceMessage = await uploadAudio(uri, session.access_token);
+    } catch (err) {
+      console.log("Transcription failed:", err.message);
       return;
     }
 
-    const voiceMessage = await response.json();
-    console.log("The user said: ", voiceMessage);
-
     await submitSearch(voiceMessage);
-
-    console.log("Recording saved at:", uri);
   };
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Voice Entry</Text>
+      <Text style={styles.cardTitle}>Voice entry</Text>
       <Text style={styles.cardSubtitle}>
-        Tap the circle, speak naturally, and Pocket Journal will save it.
+        Hold the circle, speak naturally, and let go to save it.
       </Text>
 
       <View style={styles.voiceArea}>
@@ -118,9 +142,8 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
           startRecording={startRecording}
           stopRecording={stopRecording}
         />
-
         <Text style={styles.recordingStatus}>
-          {recorderState.isRecording ? "Listening..." : "Ready to record"}
+          {recorderState.isRecording ? "Listening..." : "Ready when you are"}
         </Text>
       </View>
 
@@ -131,7 +154,7 @@ function RecorderSection({ setAudioUri, player, setRefreshKey, session }) {
         ]}
         onPress={() => player.play()}
       >
-        <Text style={styles.secondaryButtonText}>Play Last Recording</Text>
+        <Text style={styles.secondaryButtonText}>Play last recording</Text>
       </Pressable>
     </View>
   );
@@ -169,9 +192,9 @@ function TypingSection({ setRefreshKey, session }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>New Entry</Text>
+      <Text style={styles.cardTitle}>New entry</Text>
       <Text style={styles.cardSubtitle}>
-        Type a thought, task, reminder, or event.
+        A thought, a task, a reminder, an event — just write it.
       </Text>
 
       <View style={styles.inputBox}>
@@ -182,7 +205,7 @@ function TypingSection({ setRefreshKey, session }) {
         style={[styles.primaryButton, !input.trim() && styles.disabledButton]}
         onPress={submitSearch}
       >
-        <Text style={styles.primaryButtonText}>Save Entry</Text>
+        <Text style={styles.primaryButtonText}>Save entry</Text>
       </Pressable>
     </View>
   );
@@ -202,14 +225,12 @@ export default function Index() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Pocket Journal</Text>
-        <Text style={styles.subtitle}>
-          {isRecorderPage ? "Say what's on your mind" : "Write a quick entry"}
-        </Text>
+        <Text style={styles.eyebrow}>{todayLabel()}</Text>
+        <Text style={styles.title}>{greeting()}</Text>
       </View>
 
       <View style={styles.toggleRow}>
@@ -263,141 +284,128 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f5f1e8",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
+    paddingTop: 60,
   },
-  view: {
-    width: "100%",
-    backgroundColor: "#fffdf8",
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "#d6cfc2",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  button: {
-    marginTop: 16,
-    backgroundColor: "#5c6b73",
-    paddingVertical: 12,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#f8f6f2",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 0.3,
-  },
+
   header: {
-    width: "100%",
     marginBottom: 24,
   },
+
+  eyebrow: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.inkSoft,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "800",
-    color: "#2f2f2f",
+    color: colors.ink,
   },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 16,
-    color: "#7a7268",
-  },
+
   toggleRow: {
-    width: "100%",
     flexDirection: "row",
-    backgroundColor: "#e8e0d3",
+    backgroundColor: colors.primarySoft,
     borderRadius: 18,
     padding: 4,
-    marginBottom: 18,
+    marginBottom: 20,
   },
+
   toggleButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: "center",
   },
+
   toggleButtonActive: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: colors.card,
   },
+
   toggleText: {
-    color: "#7a7268",
+    color: colors.inkSoft,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
+
   toggleTextActive: {
-    color: "#2f2f2f",
+    color: colors.primary,
   },
+
   card: {
-    width: "100%",
-    backgroundColor: "#fffdf8",
-    borderRadius: 26,
-    padding: 24,
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 22,
     borderWidth: 1,
-    borderColor: "#d6cfc2",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
+    borderColor: colors.border,
   },
+
   cardTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
-    color: "#2f2f2f",
-    marginBottom: 6,
+    color: colors.ink,
+    marginBottom: 4,
   },
+
   cardSubtitle: {
-    fontSize: 15,
-    color: "#7a7268",
-    lineHeight: 21,
-    marginBottom: 22,
+    fontSize: 14,
+    color: colors.inkSoft,
+    lineHeight: 20,
+    marginBottom: 20,
   },
+
   inputBox: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
+
   primaryButton: {
-    backgroundColor: "#5c6b73",
+    backgroundColor: colors.primary,
     paddingVertical: 15,
     borderRadius: 16,
     alignItems: "center",
   },
+
   primaryButtonText: {
-    color: "#fffdf8",
+    color: colors.cream,
     fontSize: 16,
     fontWeight: "700",
   },
+
   secondaryButton: {
-    marginTop: 22,
-    backgroundColor: "#eee7dc",
+    marginTop: 18,
+    backgroundColor: colors.bg,
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: "center",
   },
+
   secondaryButtonText: {
-    color: "#4d4944",
+    color: colors.ink,
     fontSize: 15,
     fontWeight: "700",
   },
+
   disabledButton: {
     opacity: 0.45,
   },
+
   voiceArea: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 14,
   },
+
   recordingStatus: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#5c6b73",
+    color: colors.primary,
   },
 });

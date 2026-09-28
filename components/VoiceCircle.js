@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { colors } from "../utils/theme";
 
 export default function VoiceCircle({ startRecording, stopRecording }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -54,7 +55,7 @@ export default function VoiceCircle({ startRecording, stopRecording }) {
 
   const pulseOpacity = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.45, 0],
+    outputRange: [0.4, 0],
   });
 
   return (
@@ -96,25 +97,22 @@ const styles = StyleSheet.create({
     width: 132,
     height: 132,
     borderRadius: 66,
-    backgroundColor: "#5c6b73",
+    backgroundColor: colors.primary,
   },
 
   circle: {
     width: 132,
     height: 132,
     borderRadius: 66,
-    backgroundColor: "#5c6b73",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
 
     borderWidth: 4,
-    borderColor: "#fffdf8",
+    borderColor: colors.cream,
 
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 14,
 
@@ -127,7 +125,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: "#fffdf8",
+    color: colors.cream,
     fontSize: 15,
     fontWeight: "800",
     letterSpacing: 0.5,

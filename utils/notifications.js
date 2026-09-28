@@ -42,13 +42,23 @@ export function buildNotificationDate(entry) {
   return null;
 }
 
-export async function scheduleNotification(title, body, triggerDate) {
+function reminderId(entryId) {
+  return `entry-${entryId}`;
+}
+
+export async function scheduleNotification(
+  title,
+  body,
+  triggerDate,
+  identifier,
+) {
   const seconds = Math.max(
     1,
     Math.floor((triggerDate.getTime() - Date.now()) / 1000),
   );
 
   return await Notifications.scheduleNotificationAsync({
+    identifier,
     content: {
       title: title || "Reminder",
       body: body || "",
@@ -82,5 +92,14 @@ export async function handleReminder(entry) {
     entry.title,
     entry.description ?? entry.raw_text ?? entry.rawText,
     notifDate,
+    entry.id ? reminderId(entry.id) : undefined,
   );
+}
+
+export async function cancelReminder(entryId) {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(reminderId(entryId));
+  } catch (err) {
+    console.log("No reminder to cancel:", err);
+  }
 }

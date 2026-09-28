@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { colors } from "../utils/theme";
 
 export default function SearchBar({
   value,
@@ -23,6 +24,7 @@ export default function SearchBar({
         value={value}
         onChangeText={onChange}
         placeholder={isNormalSearch ? "Search..." : "AI Search..."}
+        placeholderTextColor={colors.inkSoft}
         returnKeyType="done"
         onSubmitEditing={() => Keyboard.dismiss()}
       />
@@ -54,18 +56,18 @@ export default function SearchBar({
 const styles = StyleSheet.create({
   searchContainer: {
     position: "relative",
-    marginHorizontal: 16,
   },
 
   searchInput: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingLeft: 12,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingLeft: 14,
     paddingRight: 80,
     fontSize: 16,
+    color: colors.ink,
   },
 
   enterButton: {

@@ -3,6 +3,7 @@ import { Tabs, useRouter, useSegments } from "expo-router";
 import { createContext, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "../utils/AuthContext";
+import { colors } from "../utils/theme";
 
 export const EntriesContext = createContext();
 
@@ -28,12 +29,12 @@ function AppNavigator() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#111827",
+          backgroundColor: colors.navy,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color="#93c5fd" />
+        <ActivityIndicator size="large" color={colors.gold} />
       </View>
     );
   }
@@ -43,14 +44,14 @@ function AppNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#111827",
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 8,
+          backgroundColor: colors.navy,
+          height: 72,
+          paddingBottom: 12,
+          paddingTop: 10,
           borderTopWidth: 0,
         },
-        tabBarActiveTintColor: "#93c5fd",
-        tabBarInactiveTintColor: "#9ca3af",
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: "#8A8072",
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "600",
